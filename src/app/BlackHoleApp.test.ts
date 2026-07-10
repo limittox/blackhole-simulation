@@ -91,18 +91,6 @@ describe('BlackHoleApp', () => {
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }));
   });
 
-  it('toggles horizon descent from the flight deck with F', () => {
-    const harness = createAppHarness();
-    harness.app.start();
-    harness.store.patch({ cameraPreset: 'cockpit' });
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', key: 'f' }));
-    expect(harness.camera.getFlightTelemetry().falling).toBe(true);
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', key: 'f' }));
-    expect(harness.camera.getFlightTelemetry().falling).toBe(false);
-  });
-
   it('ignores shortcuts originating from form controls', () => {
     const harness = createAppHarness();
     harness.app.start();

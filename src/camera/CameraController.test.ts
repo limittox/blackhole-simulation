@@ -86,42 +86,29 @@ describe('CameraController', () => {
     expect(after.forward).not.toEqual(before.forward);
   });
 
-  it('keeps the ship outside the emitting disk during sustained thrust', () => {
+  it('keeps the ship within the far rendering boundary', () => {
+    const camera = new CameraController(true);
+    camera.selectPreset('cockpit');
+    camera.setFlightInput({ thrust: -1, strafe: 0, lift: 0 });
+
+    for (let frame = 0; frame < 600; frame += 1) camera.update(1 / 60, 0);
+
+    expect(camera.getPose().distance).toBeLessThanOrEqual(CAMERA_DISTANCE_LIMITS.maximum);
+  });
+
+  it('lets direct thrust cross the old boundary and trigger gravity capture', () => {
     const camera = new CameraController(true);
     camera.selectPreset('cockpit');
     camera.setFlightInput({ thrust: 1, strafe: 0, lift: 0 });
 
-    for (let frame = 0; frame < 240; frame += 1) camera.update(1 / 60, 0);
-
-    expect(camera.getPose().distance).toBeGreaterThanOrEqual(
-      CAMERA_DISTANCE_LIMITS.minimum,
-    );
-  });
-
-  it('falls through the flight boundary and crosses the event horizon', () => {
-    const camera = new CameraController(true);
-    camera.selectPreset('cockpit');
-
-    expect(camera.beginFallIn()).toBe(true);
     for (let frame = 0; frame < 600; frame += 1) camera.update(1 / 60, 0);
 
     expect(camera.getPose().distance).toBeLessThan(CAMERA_DISTANCE_LIMITS.minimum);
     expect(camera.getFlightTelemetry()).toMatchObject({
-      falling: true,
+      captured: true,
       horizonCrossed: true,
       horizonProgress: 1,
     });
-  });
-
-  it('can abort horizon descent back to the flight-deck pose', () => {
-    const camera = new CameraController(true);
-    camera.selectPreset('cockpit');
-    camera.beginFallIn();
-    for (let frame = 0; frame < 60; frame += 1) camera.update(1 / 60, 0);
-
-    expect(camera.abortFallIn()).toBe(true);
-    expect(camera.getFlightTelemetry().falling).toBe(false);
-    expect(camera.getPose().distance).toBeCloseTo(CAMERA_PRESETS.cockpit.distance, 6);
   });
 
   it('does not idle-drift when reduced motion is enabled', () => {

@@ -19,13 +19,12 @@ const cameraPresets = new Set<CameraPreset>([
 
 export interface ScienceDeckOptions {
   onReset?: () => void;
-  onFallToggle?: () => void;
 }
 
 const deckMarkup = `
   <div class="cockpit-shell" aria-hidden="true">
     <div class="cockpit-glass"></div>
-    <div class="fall-vignette"></div>
+    <div class="capture-vignette"></div>
     <div class="cockpit-canopy">
       <span class="cockpit-strut cockpit-strut--left"></span>
       <span class="cockpit-strut cockpit-strut--right"></span>
@@ -143,7 +142,6 @@ const deckMarkup = `
         </section>
 
         <div class="deck-actions">
-          <button class="fall-action" type="button" data-action="fall"><span data-fall-label>BEGIN HORIZON FALL</span><kbd>F</kbd></button>
           <button type="button" data-action="pause"><span data-pause-label>PAUSE TIME</span><kbd>SPACE</kbd></button>
           <button type="button" data-action="reset">RESET MODEL <kbd>R</kbd></button>
           <button type="button" data-action="hide">HIDE INTERFACE <kbd>H</kbd></button>
@@ -207,21 +205,17 @@ export class ScienceDeck {
     this.setText('[data-flight-speed]', telemetry.speed.toFixed(2));
     this.setText(
       '[data-flight-mode]',
-      telemetry.falling ? 'HORIZON / DESCENT' : telemetry.active ? 'PILOT / MANUAL' : 'NAV / LOCKED',
+      telemetry.captured ? 'GRAVITY / CAPTURE' : telemetry.active ? 'PILOT / MANUAL' : 'NAV / LOCKED',
     );
     this.setText(
       '[data-flight-status]',
       telemetry.horizonCrossed
         ? 'EVENT HORIZON'
-        : telemetry.falling
+        : telemetry.captured
           ? 'GRAVITY LOCK'
           : telemetry.active && telemetry.speed > 0.03
             ? 'VECTOR ACTIVE'
             : 'VECTOR HOLD',
-    );
-    this.setText(
-      '[data-fall-label]',
-      telemetry.falling ? 'ABORT HORIZON FALL' : 'BEGIN HORIZON FALL',
     );
     this.root.style.setProperty(
       '--cockpit-bank',
@@ -231,10 +225,10 @@ export class ScienceDeck {
       'is-thrusting',
       telemetry.active && Math.abs(telemetry.thrust) > 0.01,
     );
-    this.root.classList.toggle('is-falling', telemetry.falling);
+    this.root.classList.toggle('is-captured', telemetry.captured);
     this.root.classList.toggle('is-horizon-crossed', telemetry.horizonCrossed);
     this.root.style.setProperty(
-      '--fall-progress',
+      '--capture-progress',
       telemetry.horizonProgress.toFixed(3),
     );
   }
@@ -250,11 +244,11 @@ export class ScienceDeck {
         'ui-hidden',
         'is-cockpit',
         'is-thrusting',
-        'is-falling',
+        'is-captured',
         'is-horizon-crossed',
       );
       this.root.style.removeProperty('--cockpit-bank');
-      this.root.style.removeProperty('--fall-progress');
+      this.root.style.removeProperty('--capture-progress');
     }
     this.root = null;
     this.collapsed = false;
@@ -321,9 +315,6 @@ export class ScienceDeck {
         break;
       case 'pause':
         this.store.patch({ paused: !this.store.getSnapshot().paused });
-        break;
-      case 'fall':
-        this.options.onFallToggle?.();
         break;
       case 'collapse':
         this.collapsed = !this.collapsed;

@@ -90,11 +90,6 @@ export class BlackHoleApp {
         this.camera.reset();
         this.noteInteraction();
       },
-      onFallToggle: () => {
-        this.clearFlightControls();
-        this.camera.toggleFallIn();
-        this.noteInteraction();
-      },
     });
     const host = this.canvas.closest<HTMLElement>('#app') ?? this.canvas.parentElement ?? document.body;
     this.intro = new IntroSequence(host, this.loadingScreen, reducedMotion);
@@ -183,13 +178,6 @@ export class BlackHoleApp {
     const key = event.key.toLowerCase();
     const preset = keyboardPresets[event.key];
     this.noteInteraction();
-
-    if (key === 'f' && this.store.getSnapshot().cameraPreset === 'cockpit') {
-      event.preventDefault();
-      this.clearFlightControls();
-      this.camera.toggleFallIn();
-      return;
-    }
 
     if (
       flightControlCodes.has(event.code) &&
