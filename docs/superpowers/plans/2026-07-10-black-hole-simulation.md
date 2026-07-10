@@ -125,7 +125,7 @@ it('clamps physical controls and resets atomically', () => {
 
 it('derives a Schwarzschild radius for the displayed mass', () => {
   expect(derivePhysics({ ...DEFAULT_SIMULATION_STATE, mass: 4.1 }).schwarzschildRadiusKm)
-    .toBeCloseTo(12_109.35, 1);
+    .toBeCloseTo(12_109_350, 1);
 });
 
 it('maps state to stable normalized shader parameters', () => {
@@ -526,7 +526,7 @@ it('updates scientific readouts when mass changes', () => {
   const root = document.createElement('div');
   new ScienceDeck(store).mount(root);
   store.patch({ mass: 8.2 });
-  expect(root.querySelector('[data-readout="radius"]')?.textContent).toContain('24,219');
+  expect(root.querySelector('[data-readout="radius"]')?.textContent).toContain('24,218,700');
 });
 
 it('removes subscriptions and listeners on dispose', () => {
