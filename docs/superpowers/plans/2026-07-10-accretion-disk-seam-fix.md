@@ -4,7 +4,7 @@
 
 **Goal:** Remove the straight azimuth seam from the direct and gravitationally lensed accretion disk without changing its geometry, palette, or quality budgets.
 
-**Architecture:** Keep the existing ray marcher and disk sampler intact. Replace only the two turbulence lookups that use a discontinuous scalar angle with circular `cos`/`sin` coordinates, so the texture domain closes continuously at the `atan` branch cut.
+**Architecture:** Keep the existing ray marcher and disk sampler intact. Make value noise periodic along its flow axis and tune each flow frequency to an integer lattice period across the full `atan` wrap, so the texture domain closes continuously without introducing repeated angular sectors.
 
 **Tech Stack:** TypeScript, Vitest, GLSL ES, Three.js, Vite
 
@@ -12,7 +12,8 @@
 
 - Preserve the ray integration, disk geometry, colors, animation speed, and quality budgets.
 - Retain two turbulence octaves and the existing radius/time variation.
-- Add no dependencies and no additional ray-marching work.
+- Use 32- and 81-cell lattice periods, keeping both flow frequencies within 0.14 percent of their current values.
+- Add no dependencies, extra noise samples, or additional ray-marching work.
 
 ---
 
@@ -24,7 +25,7 @@
 
 **Interfaces:**
 - Consumes: `flow`, `radius`, and `time` scalar values already computed by `sampleAccretionDisk`.
-- Produces: `periodicOrbit` and `periodicOrbit2` circular coordinates used only by the existing `turbulence` calculation.
+- Produces: `valueNoisePeriodicX(vec2 p, float period) -> float`, used only by the existing `turbulence` calculation.
 
 - [ ] **Step 1: Write the failing regression test**
 
@@ -33,10 +34,19 @@ Add this case inside `describe('BlackHoleRenderer', ...)`:
 ```ts
 it('wraps accretion turbulence continuously around the disk azimuth', () => {
   expect(fragmentShader).toContain(
-    'vec2 periodicOrbit = vec2(cos(flow), sin(flow));',
+    'float valueNoisePeriodicX(vec2 p, float period)',
   );
   expect(fragmentShader).toContain(
-    'vec2 periodicOrbit2 = vec2(cos(flow * 2.0), sin(flow * 2.0));',
+    'const float PRIMARY_NOISE_PERIOD = 32.0;',
+  );
+  expect(fragmentShader).toContain(
+    'const float SECONDARY_NOISE_PERIOD = 81.0;',
+  );
+  expect(fragmentShader).toContain(
+    'PRIMARY_NOISE_PERIOD / (TAU * 3.0)',
+  );
+  expect(fragmentShader).toContain(
+    'SECONDARY_NOISE_PERIOD / (TAU * 3.0)',
   );
   expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 1.7');
   expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 4.3');
@@ -51,20 +61,52 @@ Run:
 npx vitest run src/render/BlackHoleRenderer.test.ts -t "wraps accretion turbulence continuously"
 ```
 
-Expected: FAIL because `periodicOrbit` and `periodicOrbit2` are absent and the raw-flow lookups remain.
+Expected: FAIL because periodic flow-axis noise and its lattice periods are absent while the raw-flow lookups remain.
 
 - [ ] **Step 3: Implement circular turbulence coordinates**
 
-Replace the two raw-flow noise lookups in `sampleAccretionDisk` with:
+Add a centered cell wrapper and periodic flow-axis value-noise helper beside
+`valueNoise`:
 
 ```glsl
-vec2 periodicOrbit = vec2(cos(flow), sin(flow));
-vec2 periodicOrbit2 = vec2(cos(flow * 2.0), sin(flow * 2.0));
-float turbulence = valueNoise(periodicOrbit * 2.35 + vec2(radius * 0.37, time * 0.14));
-turbulence += 0.5 * valueNoise(periodicOrbit2 * 3.6 + vec2(radius * 0.61, -time * 0.27));
+float wrapPeriodicCell(float value, float period) {
+  return mod(value + period * 0.5, period) - period * 0.5;
+}
+
+float valueNoisePeriodicX(vec2 p, float period) {
+  vec2 cell = floor(p);
+  vec2 local = fract(p);
+  local = local * local * (3.0 - 2.0 * local);
+  float cellX0 = wrapPeriodicCell(cell.x, period);
+  float cellX1 = wrapPeriodicCell(cell.x + 1.0, period);
+  float a = hash21(vec2(cellX0, cell.y));
+  float b = hash21(vec2(cellX1, cell.y));
+  float c = hash21(vec2(cellX0, cell.y + 1.0));
+  float d = hash21(vec2(cellX1, cell.y + 1.0));
+  return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
 ```
 
-The angle changes by `2*pi` across the `atan` branch cut, while `flow` changes by `6*pi`; both circular coordinate pairs therefore meet exactly at the wrap.
+Then replace the two raw-flow lookups in `sampleAccretionDisk` with:
+
+```glsl
+const float PRIMARY_NOISE_PERIOD = 32.0;
+const float SECONDARY_NOISE_PERIOD = 81.0;
+float primaryFlowFrequency = PRIMARY_NOISE_PERIOD / (TAU * 3.0);
+float secondaryFlowFrequency = SECONDARY_NOISE_PERIOD / (TAU * 3.0);
+float turbulence = valueNoisePeriodicX(
+  vec2(flow * primaryFlowFrequency, radius * 3.9 + time * 0.14),
+  PRIMARY_NOISE_PERIOD
+);
+turbulence += 0.5 * valueNoisePeriodicX(
+  vec2(flow * secondaryFlowFrequency - time * 0.27, radius * 8.1),
+  SECONDARY_NOISE_PERIOD
+);
+```
+
+The angle changes by `2*pi` across the `atan` branch cut, while `flow` changes
+by `TAU * 3`. The noise coordinates therefore change by exactly one matching
+lattice period: 32 cells for the first octave and 81 for the second.
 
 - [ ] **Step 4: Run the focused test and confirm the green state**
 
