@@ -126,6 +126,9 @@ describe('ScienceDeck', () => {
 
     deck.updateFlightTelemetry({
       active: true,
+      falling: false,
+      horizonCrossed: false,
+      horizonProgress: 0,
       distance: 4.26,
       speed: 0.42,
       thrust: 1,
@@ -138,6 +141,36 @@ describe('ScienceDeck', () => {
     expect(root.querySelector('.flight-guide')?.textContent).toContain('THRUST');
     expect(root.classList.contains('is-thrusting')).toBe(true);
     expect(root.style.getPropertyValue('--cockpit-bank')).toBe('0.8deg');
+  });
+
+  it('activates and visualizes cinematic horizon descent', () => {
+    const store = new SimulationStore();
+    const root = document.createElement('div');
+    const onFallToggle = vi.fn();
+    const deck = new ScienceDeck(store, { onFallToggle });
+    deck.mount(root);
+
+    root.querySelector<HTMLButtonElement>('[data-action="fall"]')!.click();
+    expect(onFallToggle).toHaveBeenCalledTimes(1);
+
+    deck.updateFlightTelemetry({
+      active: true,
+      falling: true,
+      horizonCrossed: false,
+      horizonProgress: 0.58,
+      distance: 1.42,
+      speed: 1.16,
+      thrust: 0,
+      strafe: 0,
+      lift: 0,
+    });
+
+    expect(root.classList.contains('is-falling')).toBe(true);
+    expect(root.style.getPropertyValue('--fall-progress')).toBe('0.580');
+    expect(root.querySelector('[data-fall-label]')?.textContent).toContain('ABORT');
+    expect(root.querySelector('[data-flight-status]')?.textContent).toBe('GRAVITY LOCK');
+    expect(styles).toContain('.fall-vignette');
+    expect(styles).toContain('#interface-root.is-falling');
   });
 
   it('updates the quality preset from the native selector', () => {

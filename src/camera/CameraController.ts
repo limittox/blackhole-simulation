@@ -21,6 +21,9 @@ export interface FlightInput {
 
 export interface FlightTelemetry extends FlightInput {
   active: boolean;
+  falling: boolean;
+  horizonCrossed: boolean;
+  horizonProgress: number;
   distance: number;
   speed: number;
 }
@@ -47,6 +50,12 @@ const FLIGHT_ACCELERATION = 1.45;
 const FLIGHT_DRAG = 0.72;
 const MAX_FLIGHT_SPEED = 0.92;
 const MAX_FLIGHT_STEP = 0.1;
+const FALL_HORIZON_RADIUS = 0.86;
+const FALL_MINIMUM_DISTANCE = 0.18;
+const FALL_ACCELERATION_BASE = 0.55;
+const FALL_ACCELERATION_PEAK = 3.8;
+const FALL_DRAG = 0.18;
+const FALL_MAX_SPEED = 2.4;
 const WORLD_UP: MutableVector = [0, 1, 0];
 const ZERO_INPUT: FlightInput = Object.freeze({ thrust: 0, strafe: 0, lift: 0 });
 
@@ -144,6 +153,8 @@ export class CameraController {
   private flightYaw = Math.atan2(DEFAULT_CAMERA_POSE.forward[0], DEFAULT_CAMERA_POSE.forward[2]);
   private flightPitch = Math.asin(DEFAULT_CAMERA_POSE.forward[1]);
   private flightInput: FlightInput = { ...ZERO_INPUT };
+  private falling = false;
+  private horizonCrossed = false;
 
   constructor(reducedMotion: boolean) {
     this.reducedMotion = reducedMotion;
@@ -187,6 +198,7 @@ export class CameraController {
 
   zoom(deltaY: number): void {
     if (this.flightActive) {
+      if (this.falling) return;
       const impulse = clamp(-deltaY * 0.0012, -0.38, 0.38);
       this.flightVelocity = add(
         this.flightVelocity,
@@ -210,6 +222,33 @@ export class CameraController {
     };
   }
 
+  beginFallIn(): boolean {
+    if (!this.flightActive || this.falling) return false;
+    this.falling = true;
+    this.horizonCrossed = false;
+    this.flightInput = { ...ZERO_INPUT };
+    const inward = lookAtOrigin(this.flightPosition);
+    this.flightYaw = Math.atan2(inward[0], inward[2]);
+    this.flightPitch = Math.asin(inward[1]);
+    const inwardSpeed = Math.max(0.12, -dot(this.flightVelocity, normalize(this.flightPosition)));
+    this.flightVelocity = scale(inward, inwardSpeed);
+    return true;
+  }
+
+  abortFallIn(): boolean {
+    if (!this.flightActive || !this.falling) return false;
+    this.selectPreset('cockpit');
+    return true;
+  }
+
+  toggleFallIn(): boolean {
+    if (this.falling) {
+      this.abortFallIn();
+      return false;
+    }
+    return this.beginFallIn();
+  }
+
   selectPreset(preset: CameraPreset): void {
     if (preset === 'cockpit') {
       this.current = copyOrbit(CAMERA_PRESETS.cockpit);
@@ -220,12 +259,16 @@ export class CameraController {
       this.flightPitch = Math.asin(forward[1]);
       this.flightVelocity = [0, 0, 0];
       this.flightInput = { ...ZERO_INPUT };
+      this.falling = false;
+      this.horizonCrossed = false;
       this.flightActive = true;
       return;
     }
 
     if (this.flightActive) this.current = orbitFromPosition(this.flightPosition);
     this.flightActive = false;
+    this.falling = false;
+    this.horizonCrossed = false;
     this.flightVelocity = [0, 0, 0];
     this.flightInput = { ...ZERO_INPUT };
     this.target = copyOrbit(CAMERA_PRESETS[preset]);
@@ -264,9 +307,16 @@ export class CameraController {
   }
 
   getFlightTelemetry(): FlightTelemetry {
+    const distance = this.flightActive ? length(this.flightPosition) : this.current.distance;
+    const fallSpan = CAMERA_PRESETS.cockpit.distance - FALL_HORIZON_RADIUS;
     return {
       active: this.flightActive,
-      distance: this.flightActive ? length(this.flightPosition) : this.current.distance,
+      falling: this.falling,
+      horizonCrossed: this.horizonCrossed,
+      horizonProgress: this.falling
+        ? clamp((CAMERA_PRESETS.cockpit.distance - distance) / fallSpan, 0, 1)
+        : 0,
+      distance,
       speed: this.flightActive ? length(this.flightVelocity) : 0,
       ...this.flightInput,
     };
@@ -274,6 +324,10 @@ export class CameraController {
 
   private updateFlight(deltaSeconds: number): void {
     if (deltaSeconds <= 0) return;
+    if (this.falling) {
+      this.updateFall(deltaSeconds);
+      return;
+    }
     const forward = forwardFromAngles(this.flightYaw, this.flightPitch);
     const right = normalize(cross(forward, WORLD_UP));
     let acceleration = add(
@@ -301,6 +355,47 @@ export class CameraController {
       scale(this.flightVelocity, deltaSeconds),
     );
     this.enforceFlightBoundary();
+    this.current = orbitFromPosition(this.flightPosition);
+  }
+
+  private updateFall(deltaSeconds: number): void {
+    const distance = length(this.flightPosition);
+    const radial = normalize(this.flightPosition);
+    const fallSpan = CAMERA_PRESETS.cockpit.distance - FALL_HORIZON_RADIUS;
+    const progress = clamp(
+      (CAMERA_PRESETS.cockpit.distance - distance) / fallSpan,
+      0,
+      1,
+    );
+    const gravity =
+      FALL_ACCELERATION_BASE +
+      (FALL_ACCELERATION_PEAK - FALL_ACCELERATION_BASE) * progress * progress;
+    this.flightVelocity = add(
+      this.flightVelocity,
+      scale(radial, -gravity * deltaSeconds),
+    );
+    this.flightVelocity = scale(
+      this.flightVelocity,
+      Math.exp(-FALL_DRAG * deltaSeconds),
+    );
+    const speed = length(this.flightVelocity);
+    if (speed > FALL_MAX_SPEED) {
+      this.flightVelocity = scale(this.flightVelocity, FALL_MAX_SPEED / speed);
+    }
+
+    this.flightPosition = add(
+      this.flightPosition,
+      scale(this.flightVelocity, deltaSeconds),
+    );
+    const nextDistance = length(this.flightPosition);
+    if (nextDistance <= FALL_HORIZON_RADIUS) this.horizonCrossed = true;
+    if (nextDistance <= FALL_MINIMUM_DISTANCE) {
+      this.flightPosition = scale(
+        normalize(this.flightPosition),
+        FALL_MINIMUM_DISTANCE,
+      );
+      this.flightVelocity = [0, 0, 0];
+    }
     this.current = orbitFromPosition(this.flightPosition);
   }
 
