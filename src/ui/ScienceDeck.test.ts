@@ -1,6 +1,10 @@
+// @ts-expect-error Vitest runs in Node; the production bundle intentionally omits Node typings.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { SimulationStore } from '../state/SimulationStore';
 import { ScienceDeck } from './ScienceDeck';
+
+const styles = readFileSync('src/styles.css', 'utf8');
 
 const mountDeck = () => {
   const store = new SimulationStore();
@@ -108,6 +112,13 @@ describe('ScienceDeck', () => {
     store.patch({ cameraPreset: 'cockpit', uiVisible: false });
     expect(root.classList.contains('is-cockpit')).toBe(true);
     expect(root.classList.contains('ui-hidden')).toBe(true);
+
+    expect(styles).toContain('#interface-root.is-cockpit .cockpit-shell');
+    expect(styles).toContain('#interface-root.is-cockpit .cockpit-glass');
+    expect(styles).toContain('#interface-root.ui-hidden .cockpit-hud');
+    expect(styles).toContain('.view-grid [data-camera-preset="cockpit"]');
+    expect(styles).toContain('@media (max-width: 900px)');
+    expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
   it('updates the quality preset from the native selector', () => {
