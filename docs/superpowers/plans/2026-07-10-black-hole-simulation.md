@@ -331,7 +331,7 @@ Use these stable presets:
 ```ts
 export const CAMERA_PRESETS = {
   observatory: { yaw: -0.28, pitch: 0.2, distance: 4.6 },
-  edge: { yaw: 0.52, pitch: 0.04, distance: 3.15 },
+  edge: { yaw: 0.52, pitch: 0.04, distance: 3.75 },
   polar: { yaw: -0.08, pitch: 1.08, distance: 4.2 },
   wide: { yaw: -0.7, pitch: 0.32, distance: 7.2 },
 } as const;
@@ -339,7 +339,7 @@ export const CAMERA_PRESETS = {
 export const DEFAULT_CAMERA_POSE = CAMERA_PRESETS.observatory;
 ```
 
-Clamp pitch to `-1.18..1.18` and distance to `2.65..8.5`. Pointer movement changes target yaw/pitch, wheel movement changes target distance, and `update(deltaSeconds, idleSeconds)` applies exponential damping with `1 - exp(-8 * deltaSeconds)`. Add a yaw drift of `0.018 * deltaSeconds` only after 8 idle seconds and only when reduced motion is false.
+Clamp pitch to `-1.18..1.18` and distance to `3.55..8.5` so every user-controlled view remains outside the emitting disk. Pointer movement changes target yaw/pitch, wheel movement changes target distance, and `update(deltaSeconds, idleSeconds)` applies exponential damping with `1 - exp(-8 * deltaSeconds)`. Add a yaw drift of `0.018 * deltaSeconds` only after 8 idle seconds and only when reduced motion is false.
 
 - [ ] **Step 4: Run tests and commit**
 

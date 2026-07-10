@@ -12,6 +12,8 @@ uniform float uDiskHeat;
 uniform float uLensing;
 uniform vec3 uCamera;
 uniform int uDiskSteps;
+uniform float uDiskOuterRadius;
+uniform float uHorizonRadius;
 uniform sampler2D uStarfield;
 
 const float PI = 3.141592653589793;
@@ -66,24 +68,30 @@ vec3 starField(vec3 rayDirection, sampler2D starTexture) {
   float seed = hash21(microCell);
   float microStar = step(0.9968, seed) * exp(-90.0 * dot(microLocal, microLocal));
   vec3 tint = mix(vec3(1.0, 0.72, 0.5), vec3(0.64, 0.79, 1.0), hash21(microCell + 7.3));
-  return generatedStars * 1.6 + tint * microStar * 2.8;
+  return generatedStars * 1.25 + tint * microStar * 2.3;
 }
 
 vec3 temperatureColor(float radius, float heat) {
   float massRadius = sqrt(uMassScale);
   float inner = mix(1.5, 1.08, uSpin) * massRadius;
-  float outer = 5.8 * massRadius;
+  float outer = uDiskOuterRadius * pow(uMassScale, 0.22);
   float energy = pow(1.0 - clamp((radius - inner) / max(outer - inner, 0.1), 0.0, 1.0), 1.65);
   vec3 ember = vec3(1.4, 0.08, 0.012);
   vec3 amber = vec3(1.8, 0.55, 0.11);
-  vec3 whiteHot = vec3(2.25, 1.7, 1.12);
+  vec3 whiteHot = vec3(1.62, 1.18, 0.74);
   vec3 base = mix(ember, amber, smoothstep(0.0, 0.65, energy));
   return mix(base, whiteHot, clamp(energy * (0.48 + heat * 0.7), 0.0, 1.0));
 }
 
-vec3 bendRay(vec3 origin, vec3 direction, float massScale, float lensing) {
+vec3 bendRay(
+  vec3 origin,
+  vec3 direction,
+  float massScale,
+  float lensing,
+  float integrationStep
+) {
   float radius = max(length(origin), 0.28);
-  float gravity = 0.095 * massScale * lensing / (radius * radius);
+  float gravity = 0.38 * massScale * lensing * integrationStep / (radius * radius);
   return normalize(direction - normalize(origin) * gravity);
 }
 
@@ -92,8 +100,8 @@ vec3 applyDopplerAndRedshift(vec3 color, vec3 hitPosition, float spin) {
   vec3 tangent = normalize(vec3(-hitPosition.z, 0.0, hitPosition.x));
   vec3 towardObserver = normalize(cameraPosition() - hitPosition);
   float approach = dot(tangent, towardObserver);
-  float beaming = pow(1.0 / max(0.36, 1.0 - approach * spin * 0.52), 2.35);
-  beaming = clamp(beaming, 0.24, 3.4);
+  float beaming = pow(1.0 / max(0.42, 1.0 - approach * spin * 0.48), 1.9);
+  beaming = clamp(beaming, 0.3, 2.2);
   float redshift = sqrt(clamp(1.0 - (0.74 * sqrt(uMassScale)) / radius, 0.08, 1.0));
   vec3 shifted = color * beaming * redshift;
   shifted *= mix(vec3(1.1, 0.73, 0.52), vec3(0.78, 0.95, 1.18), approach * 0.5 + 0.5);
@@ -115,7 +123,7 @@ vec4 sampleAccretionDisk(
   float radius = length(hit.xz);
   float massRadius = sqrt(uMassScale);
   float inner = mix(1.5, 1.08, spin) * massRadius;
-  float outer = 5.8 * massRadius;
+  float outer = uDiskOuterRadius * pow(uMassScale, 0.22);
   if (radius < inner || radius > outer) return vec4(0.0);
 
   float angle = atan(hit.z, hit.x);
@@ -128,8 +136,8 @@ vec4 sampleAccretionDisk(
   float density = clamp((0.58 + turbulence * 0.6) * radialBands * outerFade * innerFade, 0.0, 1.0);
   vec3 color = temperatureColor(radius, heat);
   color = applyDopplerAndRedshift(color, hit, spin);
-  float alpha = density * (0.48 + heat * 0.26);
-  return vec4(color * (0.7 + density * 1.3), alpha);
+  float alpha = density * (0.34 + heat * 0.2);
+  return vec4(color * (0.38 + density * 0.72), alpha);
 }
 
 void main() {
@@ -140,14 +148,14 @@ void main() {
   float transmittance = 1.0;
   float closestApproach = 1000.0;
   bool captured = false;
-  float horizon = 0.78 * sqrt(uMassScale);
+  float horizon = uHorizonRadius * sqrt(uMassScale);
 
   for (int stepIndex = 0; stepIndex < MAX_DISK_STEPS; stepIndex += 1) {
     if (stepIndex >= uDiskSteps) break;
     vec3 previous = position;
     float radiusBefore = length(position);
     float stepSize = mix(0.052, 0.19, smoothstep(0.8, 7.5, radiusBefore));
-    direction = bendRay(position, direction, uMassScale, uLensing);
+    direction = bendRay(position, direction, uMassScale, uLensing, stepSize);
     position += direction * stepSize;
     float radius = length(position);
     closestApproach = min(closestApproach, radius);
@@ -168,7 +176,7 @@ void main() {
   float ringWidth = 0.052 + 0.018 * uLensing;
   float photonRing = exp(-pow((closestApproach - ringRadius) / ringWidth, 2.0));
   photonRing *= captured ? 0.28 : 1.0;
-  vec3 ringColor = vec3(2.3, 1.45, 0.72) * photonRing * (0.55 + uDiskHeat * 0.85);
+  vec3 ringColor = vec3(1.75, 1.02, 0.46) * photonRing * (0.48 + uDiskHeat * 0.62);
 
   vec3 color = background + diskLight + ringColor;
   float vignetteShape = max(0.0, 16.0 * vUv.x * vUv.y * (1.0 - vUv.x) * (1.0 - vUv.y));

@@ -132,6 +132,13 @@ export class ScienceDeck {
   mount(root: HTMLElement): void {
     this.root = root;
     root.innerHTML = deckMarkup;
+    this.collapsed = window.matchMedia?.('(max-width: 900px)').matches ?? false;
+    if (this.collapsed) {
+      root.querySelector('.science-deck')?.classList.add('is-collapsed');
+      const collapseButton = root.querySelector<HTMLElement>('[data-action="collapse"]');
+      collapseButton?.setAttribute('aria-expanded', 'false');
+      collapseButton?.setAttribute('aria-label', 'Expand science deck');
+    }
     root.addEventListener('input', this.handleInput);
     root.addEventListener('click', this.handleClick);
     this.unsubscribe = this.store.subscribe(this.render);
@@ -160,6 +167,7 @@ export class ScienceDeck {
       this.root.classList.remove('ui-hidden');
     }
     this.root = null;
+    this.collapsed = false;
   }
 
   private readonly render = (snapshot: SimulationSnapshot): void => {
@@ -227,6 +235,7 @@ export class ScienceDeck {
         this.collapsed = !this.collapsed;
         this.root?.querySelector('.science-deck')?.classList.toggle('is-collapsed', this.collapsed);
         target.setAttribute('aria-expanded', String(!this.collapsed));
+        target.setAttribute('aria-label', this.collapsed ? 'Expand science deck' : 'Collapse science deck');
         break;
     }
   };

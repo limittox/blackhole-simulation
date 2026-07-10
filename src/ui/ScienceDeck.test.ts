@@ -21,6 +21,30 @@ describe('ScienceDeck', () => {
     expect(root.querySelector('label[for="time-control"]')).not.toBeNull();
   });
 
+  it('starts collapsed on narrow viewports to preserve the simulation view', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        media: '(max-width: 900px)',
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    try {
+      const { root } = mountDeck();
+      expect(root.querySelector('.science-deck')?.classList.contains('is-collapsed')).toBe(true);
+      expect(root.querySelector('[data-action="collapse"]')?.getAttribute('aria-expanded')).toBe('false');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('patches the store from a range input', () => {
     const { root, store } = mountDeck();
     const spin = root.querySelector<HTMLInputElement>('#spin-control')!;

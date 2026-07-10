@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_CAMERA_POSE } from '../camera/CameraController';
+import {
+  CAMERA_DISTANCE_LIMITS,
+  CAMERA_PRESETS,
+  DEFAULT_CAMERA_POSE,
+} from '../camera/CameraController';
 import { QUALITY_SETTINGS } from '../performance/AdaptiveQuality';
 import { DEFAULT_SIMULATION_STATE } from '../state/SimulationStore';
+import fragmentShader from './shaders/blackHole.frag.glsl?raw';
 import {
   BlackHoleRenderer,
+  CINEMATIC_RENDER_SETTINGS,
+  DISK_MODEL,
   type RendererBackend,
   type UniformFrame,
   WebGLUnavailableError,
@@ -33,6 +40,19 @@ const createFakeBackend = (): RendererBackend & { lastFrame?: UniformFrame } => 
 };
 
 describe('BlackHoleRenderer', () => {
+  it('scales each lensing impulse by the integration step', () => {
+    expect(fragmentShader).toContain('integrationStep / (radius * radius)');
+  });
+
+  it('keeps the observatory outside the emitting disk with restrained bloom', () => {
+    for (const preset of Object.values(CAMERA_PRESETS)) {
+      expect(preset.distance).toBeGreaterThan(DISK_MODEL.outerRadius + 0.25);
+    }
+    expect(CAMERA_DISTANCE_LIMITS.minimum).toBeGreaterThan(DISK_MODEL.outerRadius + 0.25);
+    expect(CINEMATIC_RENDER_SETTINGS.bloomThreshold).toBeGreaterThanOrEqual(0.55);
+    expect(CINEMATIC_RENDER_SETTINGS.bloomStrengthBase).toBeLessThan(1);
+  });
+
   it('reports WebGL2 absence without constructing a backend', () => {
     const factory = vi.fn();
 

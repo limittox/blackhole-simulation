@@ -18,6 +18,20 @@ export class WebGLUnavailableError extends Error {
   }
 }
 
+export const DISK_MODEL = Object.freeze({
+  outerRadius: 3.25,
+  horizonRadius: 0.86,
+});
+
+export const CINEMATIC_RENDER_SETTINGS = Object.freeze({
+  exposure: 0.72,
+  bloomThreshold: 0.68,
+  bloomStrengthBase: 0.48,
+  bloomStrengthHeat: 0.36,
+  bloomRadiusBase: 0.36,
+  bloomRadiusHeat: 0.1,
+});
+
 export interface UniformFrame {
   resolution: readonly [number, number];
   time: number;
@@ -51,6 +65,8 @@ interface ShaderUniforms {
   uLensing: { value: number };
   uCamera: { value: THREE.Vector3 };
   uDiskSteps: { value: number };
+  uDiskOuterRadius: { value: number };
+  uHorizonRadius: { value: number };
   uStarfield: { value: THREE.Texture };
 }
 
@@ -80,7 +96,7 @@ class ThreeRendererBackend implements RendererBackend {
     });
     this.renderer.setClearColor(0x000000, 1);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.toneMappingExposure = CINEMATIC_RENDER_SETTINGS.exposure;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.starfield = new THREE.DataTexture(
@@ -106,6 +122,8 @@ class ThreeRendererBackend implements RendererBackend {
       uLensing: { value: 1 },
       uCamera: { value: new THREE.Vector3(-0.28, 0.2, 4.6) },
       uDiskSteps: { value: 56 },
+      uDiskOuterRadius: { value: DISK_MODEL.outerRadius },
+      uHorizonRadius: { value: DISK_MODEL.horizonRadius },
       uStarfield: { value: this.starfield },
     };
 
@@ -131,7 +149,12 @@ class ThreeRendererBackend implements RendererBackend {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.35, 0.62, 0.12);
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(1, 1),
+      CINEMATIC_RENDER_SETTINGS.bloomStrengthBase,
+      CINEMATIC_RENDER_SETTINGS.bloomRadiusBase,
+      CINEMATIC_RENDER_SETTINGS.bloomThreshold,
+    );
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(new OutputPass());
 
@@ -157,8 +180,12 @@ class ThreeRendererBackend implements RendererBackend {
     this.uniforms.uCamera.value.set(frame.camera.yaw, frame.camera.pitch, frame.camera.distance);
     this.uniforms.uDiskSteps.value = frame.diskSteps;
     this.bloomPass.enabled = frame.bloom;
-    this.bloomPass.strength = 1.05 + frame.diskHeat * 0.95;
-    this.bloomPass.radius = 0.54 + frame.diskHeat * 0.16;
+    this.bloomPass.strength =
+      CINEMATIC_RENDER_SETTINGS.bloomStrengthBase +
+      frame.diskHeat * CINEMATIC_RENDER_SETTINGS.bloomStrengthHeat;
+    this.bloomPass.radius =
+      CINEMATIC_RENDER_SETTINGS.bloomRadiusBase +
+      frame.diskHeat * CINEMATIC_RENDER_SETTINGS.bloomRadiusHeat;
     this.composer.render();
   }
 
