@@ -63,10 +63,10 @@ npx vitest run src/render/BlackHoleRenderer.test.ts -t "wraps accretion turbulen
 
 Expected: FAIL because periodic flow-axis noise and its lattice periods are absent while the raw-flow lookups remain.
 
-- [ ] **Step 3: Implement circular turbulence coordinates**
+- [ ] **Step 3: Implement periodic flow-axis lattice coordinates**
 
-Add a centered cell wrapper and periodic flow-axis value-noise helper beside
-`valueNoise`:
+Replace the original value-noise helper with a centered cell wrapper and
+periodic flow-axis helper:
 
 ```glsl
 float wrapPeriodicCell(float value, float period) {

@@ -41,8 +41,31 @@ const createFakeBackend = (): RendererBackend & { lastFrame?: UniformFrame } => 
 
 describe('BlackHoleRenderer', () => {
   it('wraps accretion turbulence continuously around the disk azimuth', () => {
+    const compactShader = fragmentShader.replace(/\s+/g, ' ');
+    const primaryTurbulenceCall = [
+      'float turbulence = valueNoisePeriodicX(',
+      'vec2(flow * primaryFlowFrequency, radius * 3.9 + time * 0.14),',
+      'PRIMARY_NOISE_PERIOD',
+      ');',
+    ].join(' ');
+    const secondaryTurbulenceCall = [
+      'turbulence += 0.5 * valueNoisePeriodicX(',
+      'vec2(flow * secondaryFlowFrequency - time * 0.27, radius * 8.1),',
+      'SECONDARY_NOISE_PERIOD',
+      ');',
+    ].join(' ');
+
     expect(fragmentShader).toContain(
       'float valueNoisePeriodicX(vec2 p, float period)',
+    );
+    expect(fragmentShader).toContain(
+      'return mod(value + period * 0.5, period) - period * 0.5;',
+    );
+    expect(fragmentShader).toContain(
+      'float cellX0 = wrapPeriodicCell(cell.x, period);',
+    );
+    expect(fragmentShader).toContain(
+      'float cellX1 = wrapPeriodicCell(cell.x + 1.0, period);',
     );
     expect(fragmentShader).toContain(
       'const float PRIMARY_NOISE_PERIOD = 32.0;',
@@ -56,6 +79,8 @@ describe('BlackHoleRenderer', () => {
     expect(fragmentShader).toContain(
       'SECONDARY_NOISE_PERIOD / (TAU * 3.0)',
     );
+    expect(compactShader).toContain(primaryTurbulenceCall);
+    expect(compactShader).toContain(secondaryTurbulenceCall);
     expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 1.7');
     expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 4.3');
   });
