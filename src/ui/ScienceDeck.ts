@@ -10,6 +10,10 @@ const numericControls = new Set(['mass', 'spin', 'diskHeat', 'lensing', 'timeSca
 const qualityPresets = new Set<QualityPreset>(['auto', 'high', 'balanced', 'performance']);
 const cameraPresets = new Set<CameraPreset>(['observatory', 'edge', 'polar', 'wide']);
 
+export interface ScienceDeckOptions {
+  onReset?: () => void;
+}
+
 const deckMarkup = `
   <div class="interface-layer">
     <div class="cinematic-frame" aria-hidden="true">
@@ -120,7 +124,10 @@ export class ScienceDeck {
   private unsubscribe: (() => void) | null = null;
   private collapsed = false;
 
-  constructor(private readonly store: SimulationStore) {}
+  constructor(
+    private readonly store: SimulationStore,
+    private readonly options: ScienceDeckOptions = {},
+  ) {}
 
   mount(root: HTMLElement): void {
     this.root = root;
@@ -208,6 +215,7 @@ export class ScienceDeck {
     switch (target.dataset.action) {
       case 'reset':
         this.store.reset();
+        this.options.onReset?.();
         break;
       case 'hide':
         this.store.patch({ uiVisible: false });

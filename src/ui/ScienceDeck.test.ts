@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SimulationStore } from '../state/SimulationStore';
 import { ScienceDeck } from './ScienceDeck';
 
@@ -69,6 +69,18 @@ describe('ScienceDeck', () => {
     root.querySelector<HTMLButtonElement>('[data-action="hide"]')!.click();
     expect(store.getSnapshot().uiVisible).toBe(false);
     expect(root.classList.contains('ui-hidden')).toBe(true);
+  });
+
+  it('notifies the application when a reset should also restore the camera', () => {
+    const store = new SimulationStore();
+    const root = document.createElement('div');
+    const onReset = vi.fn();
+    const deck = new ScienceDeck(store, { onReset });
+    deck.mount(root);
+
+    root.querySelector<HTMLButtonElement>('[data-action="reset"]')!.click();
+
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 
   it('shows a styled renderer fallback', () => {

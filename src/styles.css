@@ -55,6 +55,27 @@ input:focus-visible {
 
 #black-hole-canvas:active { cursor: grabbing; }
 
+#app.is-intro #black-hole-canvas {
+  opacity: .12;
+  transform: scale(1.025);
+}
+
+#app.stars-ready #black-hole-canvas {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 1.4s ease, transform 2.2s cubic-bezier(.2,.7,.2,1);
+}
+
+#app.is-intro #interface-root .interface-layer {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+#app.scene-ready #interface-root .interface-layer {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 #interface-root {
   position: fixed;
   inset: 0;
