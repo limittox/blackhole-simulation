@@ -9,9 +9,9 @@ export interface QualitySettings {
 }
 
 export const QUALITY_SETTINGS: Readonly<Record<RenderQualityLevel, Readonly<QualitySettings>>> = {
-  high: Object.freeze({ pixelRatioCap: 1.75, diskSteps: 72, bloom: true }),
-  balanced: Object.freeze({ pixelRatioCap: 1.25, diskSteps: 56, bloom: true }),
-  performance: Object.freeze({ pixelRatioCap: 0.9, diskSteps: 40, bloom: false }),
+  high: Object.freeze({ pixelRatioCap: 1.75, diskSteps: 96, bloom: true }),
+  balanced: Object.freeze({ pixelRatioCap: 1.25, diskSteps: 80, bloom: true }),
+  performance: Object.freeze({ pixelRatioCap: 0.9, diskSteps: 64, bloom: false }),
 };
 
 const downgrade = (level: RenderQualityLevel): RenderQualityLevel => {

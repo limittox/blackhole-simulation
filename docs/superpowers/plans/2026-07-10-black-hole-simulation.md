@@ -257,9 +257,9 @@ Use these exact renderer settings:
 
 ```ts
 export const QUALITY_SETTINGS = {
-  high: { pixelRatioCap: 1.75, diskSteps: 72, bloom: true },
-  balanced: { pixelRatioCap: 1.25, diskSteps: 56, bloom: true },
-  performance: { pixelRatioCap: 0.9, diskSteps: 40, bloom: false },
+  high: { pixelRatioCap: 1.75, diskSteps: 96, bloom: true },
+  balanced: { pixelRatioCap: 1.25, diskSteps: 80, bloom: true },
+  performance: { pixelRatioCap: 0.9, diskSteps: 64, bloom: false },
 } as const;
 ```
 
@@ -468,7 +468,7 @@ vec4 sampleAccretionDisk(vec3 origin, vec3 direction, float spin, float heat, fl
 vec3 applyDopplerAndRedshift(vec3 color, vec3 hitPosition, float spin);
 ```
 
-Use a fixed compile-time maximum of 72 disk steps and break logically when the active `uDiskSteps` threshold is reached. Capture rays that approach within a normalized radius of `0.82`, add a narrow photon ring around `0.86..0.95`, and sample the disk between normalized radii `1.35..5.8`. Warp missed rays before passing them to `starField()`. Apply ACES-style tone mapping and gamma correction after combining disk, ring, and background.
+Use a fixed compile-time maximum of 96 disk steps and break logically when the active `uDiskSteps` threshold is reached. Once a ray passes its closest approach, increase its step length outside the near-horizon region so every quality preset reaches the far-side disk intersection that forms the upper lensed image. Capture rays that enter the horizon, add a narrow photon ring around it, and sample the disk between its mass-scaled inner and outer radii. Warp missed rays before passing them to `starField()`. Apply ACES-style tone mapping and gamma correction after combining disk, ring, and background.
 
 The TypeScript renderer must:
 

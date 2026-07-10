@@ -40,6 +40,15 @@ const createFakeBackend = (): RendererBackend & { lastFrame?: UniformFrame } => 
 };
 
 describe('BlackHoleRenderer', () => {
+  it('keeps an outbound ray phase for the lensed far-side disk at every quality', () => {
+    expect(fragmentShader).toContain('const int MAX_DISK_STEPS = 96;');
+    expect(fragmentShader).toContain('bool outbound = false;');
+    expect(fragmentShader).toContain('stepSize *= 2.5;');
+    expect(QUALITY_SETTINGS.performance.diskSteps).toBeGreaterThanOrEqual(64);
+    expect(QUALITY_SETTINGS.balanced.diskSteps).toBeGreaterThanOrEqual(80);
+    expect(QUALITY_SETTINGS.high.diskSteps).toBeGreaterThanOrEqual(96);
+  });
+
   it('scales each lensing impulse by the integration step', () => {
     expect(fragmentShader).toContain('integrationStep / (radius * radius)');
   });
@@ -91,7 +100,7 @@ describe('BlackHoleRenderer', () => {
       diskHeat: 0.58,
       lensing: 1,
       camera: DEFAULT_CAMERA_POSE,
-      diskSteps: 56,
+      diskSteps: 80,
       bloom: true,
     });
   });

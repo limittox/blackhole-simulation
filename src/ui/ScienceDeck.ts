@@ -96,9 +96,9 @@ const deckMarkup = `
           <div class="select-wrap">
             <select id="quality-control" data-control="quality">
               <option value="auto">AUTO / ADAPTIVE</option>
-              <option value="high">HIGH / 72 STEPS</option>
-              <option value="balanced">BALANCED / 56 STEPS</option>
-              <option value="performance">PERFORMANCE / 40 STEPS</option>
+              <option value="high">HIGH / 96 STEPS</option>
+              <option value="balanced">BALANCED / 80 STEPS</option>
+              <option value="performance">PERFORMANCE / 64 STEPS</option>
             </select>
           </div>
         </section>

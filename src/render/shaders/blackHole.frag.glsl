@@ -18,7 +18,7 @@ uniform sampler2D uStarfield;
 
 const float PI = 3.141592653589793;
 const float TAU = 6.283185307179586;
-const int MAX_DISK_STEPS = 72;
+const int MAX_DISK_STEPS = 96;
 
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -148,16 +148,19 @@ void main() {
   float transmittance = 1.0;
   float closestApproach = 1000.0;
   bool captured = false;
+  bool outbound = false;
   float horizon = uHorizonRadius * sqrt(uMassScale);
 
   for (int stepIndex = 0; stepIndex < MAX_DISK_STEPS; stepIndex += 1) {
     if (stepIndex >= uDiskSteps) break;
     vec3 previous = position;
     float radiusBefore = length(position);
-    float stepSize = mix(0.052, 0.19, smoothstep(0.8, 7.5, radiusBefore));
+    float stepSize = mix(0.085, 0.19, smoothstep(0.8, 7.5, radiusBefore));
+    if (outbound && radiusBefore > horizon * 1.25) stepSize *= 2.5;
     direction = bendRay(position, direction, uMassScale, uLensing, stepSize);
     position += direction * stepSize;
     float radius = length(position);
+    outbound = outbound || radius > radiusBefore;
     closestApproach = min(closestApproach, radius);
 
     vec4 diskSample = sampleAccretionDisk(previous, position - previous, uSpin, uDiskHeat, uTime);

@@ -84,6 +84,14 @@ describe('ScienceDeck', () => {
     expect(store.getSnapshot().quality).toBe('performance');
   });
 
+  it('shows the ray budgets that preserve the far-side lensed disk', () => {
+    const { root } = mountDeck();
+
+    expect(root.querySelector('option[value="high"]')?.textContent).toContain('96 STEPS');
+    expect(root.querySelector('option[value="balanced"]')?.textContent).toContain('80 STEPS');
+    expect(root.querySelector('option[value="performance"]')?.textContent).toContain('64 STEPS');
+  });
+
   it('can reset the simulation and hide the interface', () => {
     const { root, store } = mountDeck();
     store.patch({ spin: 0.95 });
