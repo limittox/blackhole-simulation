@@ -14,7 +14,8 @@
 - Publish only `dist`; do not commit generated build output or create a `gh-pages` branch.
 - Run `npm test` and `npm run build` before artifact upload.
 - Use Node 22 with `npm ci` and the committed lockfile.
-- Grant only `contents: read`, `pages: write`, and `id-token: write` workflow permissions.
+- Default to no workflow permissions, grant the build job only `contents: read`,
+  and grant the deploy job only `pages: write` and `id-token: write`.
 - Pin every third-party action to the audited immutable commit SHA.
 - Preserve the public URL `https://limittox.github.io/blackhole-simulation/`.
 
@@ -38,7 +39,44 @@ Create `src/deployment/GitHubPages.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import viteConfig from '../../vite.config';
-import pagesWorkflow from '../../.github/workflows/deploy-pages.yml?raw';
+
+const pagesWorkflows = import.meta.glob<string>(
+  '../../.github/workflows/deploy-pages.yml',
+  { query: '?raw', import: 'default', eager: true },
+);
+const pagesWorkflow =
+  pagesWorkflows['../../.github/workflows/deploy-pages.yml'] ?? '';
+
+const yamlBlock = (source: string, header: string) => {
+  const lines = source.split(/\r?\n/);
+  const start = lines.indexOf(header);
+  if (start === -1) return '';
+
+  const indentation = header.length - header.trimStart().length;
+  const block = [header];
+
+  for (const line of lines.slice(start + 1)) {
+    const nextIndentation = line.length - line.trimStart().length;
+    if (line.trim() && nextIndentation <= indentation) break;
+    block.push(line);
+  }
+
+  return block.join('\n').trimEnd();
+};
+
+const actionReferences = (source: string) =>
+  source
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('uses: '));
+
+const expectedActionReferences = [
+  'uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0',
+  'uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e',
+  'uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9',
+  'uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d',
+  'uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128',
+];
 
 describe('GitHub Pages deployment', () => {
   it('builds assets below the repository Pages path', () => {
@@ -83,6 +121,49 @@ describe('GitHub Pages deployment', () => {
       'actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128',
     );
   });
+
+  it('scopes write credentials and Pages configuration to deployment', () => {
+    const buildJob = yamlBlock(pagesWorkflow, '  build:');
+    const deployJob = yamlBlock(pagesWorkflow, '  deploy:');
+
+    expect.soft(yamlBlock(pagesWorkflow, 'permissions: {}')).toBe(
+      'permissions: {}',
+    );
+    expect.soft(yamlBlock(buildJob, '    permissions:')).toBe(
+      '    permissions:\n      contents: read',
+    );
+    expect.soft(buildJob).not.toContain('pages: write');
+    expect.soft(buildJob).not.toContain('id-token: write');
+    expect.soft(yamlBlock(deployJob, '    permissions:')).toBe(
+      '    permissions:\n      pages: write\n      id-token: write',
+    );
+    expect.soft(deployJob).not.toContain('contents: read');
+    expect.soft(actionReferences(buildJob)).toEqual(
+      expectedActionReferences.slice(0, 3),
+    );
+    expect.soft(actionReferences(deployJob)).toEqual(
+      expectedActionReferences.slice(3),
+    );
+    expect(deployJob).toContain(
+      [
+        '      - name: Configure Pages',
+        `        ${expectedActionReferences[3]}`,
+        '      - name: Deploy to GitHub Pages',
+        '        id: deployment',
+        `        ${expectedActionReferences[4]}`,
+      ].join('\n'),
+    );
+  });
+
+  it('uses exactly the approved immutable action references', () => {
+    const references = actionReferences(pagesWorkflow);
+
+    expect(references).toEqual(expectedActionReferences);
+    expect(references).toHaveLength(5);
+    for (const reference of references) {
+      expect(reference).toMatch(/^uses: [^@\s]+@[0-9a-f]{40}$/);
+    }
+  });
 });
 ```
 
@@ -119,10 +200,7 @@ on:
     branches: ['main']
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
@@ -130,6 +208,8 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -145,20 +225,23 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-      - name: Configure Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: './dist'
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
