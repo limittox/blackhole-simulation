@@ -40,6 +40,26 @@ const createFakeBackend = (): RendererBackend & { lastFrame?: UniformFrame } => 
 };
 
 describe('BlackHoleRenderer', () => {
+  it('wraps accretion turbulence continuously around the disk azimuth', () => {
+    expect(fragmentShader).toContain(
+      'float valueNoisePeriodicX(vec2 p, float period)',
+    );
+    expect(fragmentShader).toContain(
+      'const float PRIMARY_NOISE_PERIOD = 32.0;',
+    );
+    expect(fragmentShader).toContain(
+      'const float SECONDARY_NOISE_PERIOD = 81.0;',
+    );
+    expect(fragmentShader).toContain(
+      'PRIMARY_NOISE_PERIOD / (TAU * 3.0)',
+    );
+    expect(fragmentShader).toContain(
+      'SECONDARY_NOISE_PERIOD / (TAU * 3.0)',
+    );
+    expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 1.7');
+    expect(fragmentShader).not.toContain('valueNoise(vec2(flow * 4.3');
+  });
+
   it('keeps an outbound ray phase for the lensed far-side disk at every quality', () => {
     expect(fragmentShader).toContain('const int MAX_DISK_STEPS = 96;');
     expect(fragmentShader).toContain('bool outbound = false;');

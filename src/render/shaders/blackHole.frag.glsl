@@ -26,14 +26,20 @@ float hash21(vec2 p) {
   return fract(p.x * p.y);
 }
 
-float valueNoise(vec2 p) {
+float wrapPeriodicCell(float value, float period) {
+  return mod(value + period * 0.5, period) - period * 0.5;
+}
+
+float valueNoisePeriodicX(vec2 p, float period) {
   vec2 cell = floor(p);
   vec2 local = fract(p);
   local = local * local * (3.0 - 2.0 * local);
-  float a = hash21(cell);
-  float b = hash21(cell + vec2(1.0, 0.0));
-  float c = hash21(cell + vec2(0.0, 1.0));
-  float d = hash21(cell + vec2(1.0, 1.0));
+  float cellX0 = wrapPeriodicCell(cell.x, period);
+  float cellX1 = wrapPeriodicCell(cell.x + 1.0, period);
+  float a = hash21(vec2(cellX0, cell.y));
+  float b = hash21(vec2(cellX1, cell.y));
+  float c = hash21(vec2(cellX0, cell.y + 1.0));
+  float d = hash21(vec2(cellX1, cell.y + 1.0));
   return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
 }
 
@@ -128,8 +134,18 @@ vec4 sampleAccretionDisk(
 
   float angle = atan(hit.z, hit.x);
   float flow = angle * 3.0 - time * (0.55 + spin * 2.2) / pow(max(radius, 1.0), 0.68);
-  float turbulence = valueNoise(vec2(flow * 1.7, radius * 3.9 + time * 0.14));
-  turbulence += 0.5 * valueNoise(vec2(flow * 4.3 - time * 0.27, radius * 8.1));
+  const float PRIMARY_NOISE_PERIOD = 32.0;
+  const float SECONDARY_NOISE_PERIOD = 81.0;
+  float primaryFlowFrequency = PRIMARY_NOISE_PERIOD / (TAU * 3.0);
+  float secondaryFlowFrequency = SECONDARY_NOISE_PERIOD / (TAU * 3.0);
+  float turbulence = valueNoisePeriodicX(
+    vec2(flow * primaryFlowFrequency, radius * 3.9 + time * 0.14),
+    PRIMARY_NOISE_PERIOD
+  );
+  turbulence += 0.5 * valueNoisePeriodicX(
+    vec2(flow * secondaryFlowFrequency - time * 0.27, radius * 8.1),
+    SECONDARY_NOISE_PERIOD
+  );
   float radialBands = 0.68 + 0.32 * sin(radius * 18.0 - time * 0.8 + turbulence * 5.0);
   float outerFade = 1.0 - smoothstep(outer * 0.72, outer, radius);
   float innerFade = smoothstep(inner, inner + 0.16 * massRadius, radius);
