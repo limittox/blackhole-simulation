@@ -66,6 +66,10 @@ describe('BlackHoleApp', () => {
     expect(harness.store.getSnapshot().paused).toBe(true);
     expect(harness.store.getSnapshot().uiVisible).toBe(false);
     expect(harness.store.getSnapshot().cameraPreset).toBe('polar');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '5' }));
+
+    expect(harness.store.getSnapshot().cameraPreset).toBe('cockpit');
   });
 
   it('ignores shortcuts originating from form controls', () => {

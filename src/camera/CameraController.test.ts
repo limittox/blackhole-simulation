@@ -12,6 +12,14 @@ describe('CameraController', () => {
     expect(camera.getPose()).toEqual(DEFAULT_CAMERA_POSE);
   });
 
+  it('offers a close safe flight-deck pose', () => {
+    expect(CAMERA_PRESETS).toHaveProperty('cockpit', {
+      yaw: 0.14,
+      pitch: 0.1,
+      distance: 3.7,
+    });
+  });
+
   it('clamps pitch and distance to safe shader ranges', () => {
     const camera = new CameraController(false);
     camera.beginOrbit(0, 0);

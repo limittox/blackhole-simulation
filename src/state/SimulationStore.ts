@@ -1,5 +1,5 @@
 export type QualityPreset = 'auto' | 'high' | 'balanced' | 'performance';
-export type CameraPreset = 'observatory' | 'edge' | 'polar' | 'wide';
+export type CameraPreset = 'observatory' | 'edge' | 'polar' | 'wide' | 'cockpit';
 
 export interface SimulationState {
   mass: number;

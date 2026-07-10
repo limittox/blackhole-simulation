@@ -11,6 +11,7 @@ export const CAMERA_PRESETS: Readonly<Record<CameraPreset, Readonly<CameraPose>>
   edge: Object.freeze({ yaw: 0.52, pitch: 0.04, distance: 3.75 }),
   polar: Object.freeze({ yaw: -0.08, pitch: 1.08, distance: 4.2 }),
   wide: Object.freeze({ yaw: -0.7, pitch: 0.32, distance: 7.2 }),
+  cockpit: Object.freeze({ yaw: 0.14, pitch: 0.1, distance: 3.7 }),
 };
 
 export const DEFAULT_CAMERA_POSE = CAMERA_PRESETS.observatory;

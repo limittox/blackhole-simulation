@@ -74,6 +74,42 @@ describe('ScienceDeck', () => {
     expect(polar.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('selects the flight deck and exposes cockpit state on the root', () => {
+    const { root, store } = mountDeck();
+    const flightDeck = root.querySelector<HTMLButtonElement>(
+      '[data-camera-preset="cockpit"]',
+    );
+
+    expect(flightDeck).not.toBeNull();
+    expect(flightDeck!.textContent).toContain('Flight deck');
+    flightDeck!.click();
+    expect(store.getSnapshot().cameraPreset).toBe('cockpit');
+    expect(root.classList.contains('is-cockpit')).toBe(true);
+
+    root.querySelector<HTMLButtonElement>(
+      '[data-camera-preset="observatory"]',
+    )?.click();
+    expect(root.classList.contains('is-cockpit')).toBe(false);
+  });
+
+  it('renders a persistent decorative cockpit with a hideable HUD', () => {
+    const { root, store } = mountDeck();
+    const shell = root.querySelector<HTMLElement>('.cockpit-shell');
+
+    expect(shell).not.toBeNull();
+    expect(shell!.getAttribute('aria-hidden')).toBe('true');
+    expect(shell!.parentElement).toBe(root);
+    expect(shell!.nextElementSibling?.classList.contains('interface-layer')).toBe(true);
+    expect(shell!.querySelector('.cockpit-canopy')).not.toBeNull();
+    expect(shell!.querySelector('.cockpit-console')).not.toBeNull();
+    expect(shell!.querySelector('.cockpit-reticle')).not.toBeNull();
+    expect(shell!.querySelector('.cockpit-hud')).not.toBeNull();
+
+    store.patch({ cameraPreset: 'cockpit', uiVisible: false });
+    expect(root.classList.contains('is-cockpit')).toBe(true);
+    expect(root.classList.contains('ui-hidden')).toBe(true);
+  });
+
   it('updates the quality preset from the native selector', () => {
     const { root, store } = mountDeck();
     const quality = root.querySelector<HTMLSelectElement>('#quality-control')!;

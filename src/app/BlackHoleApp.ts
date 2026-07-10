@@ -36,6 +36,7 @@ const keyboardPresets: Readonly<Record<string, CameraPreset>> = {
   '2': 'edge',
   '3': 'polar',
   '4': 'wide',
+  '5': 'cockpit',
 };
 
 const isFormTarget = (target: EventTarget | null): boolean => {

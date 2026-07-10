@@ -8,13 +8,48 @@ import type {
 
 const numericControls = new Set(['mass', 'spin', 'diskHeat', 'lensing', 'timeScale']);
 const qualityPresets = new Set<QualityPreset>(['auto', 'high', 'balanced', 'performance']);
-const cameraPresets = new Set<CameraPreset>(['observatory', 'edge', 'polar', 'wide']);
+const cameraPresets = new Set<CameraPreset>([
+  'observatory',
+  'edge',
+  'polar',
+  'wide',
+  'cockpit',
+]);
 
 export interface ScienceDeckOptions {
   onReset?: () => void;
 }
 
 const deckMarkup = `
+  <div class="cockpit-shell" aria-hidden="true">
+    <div class="cockpit-glass"></div>
+    <div class="cockpit-canopy">
+      <span class="cockpit-strut cockpit-strut--left"></span>
+      <span class="cockpit-strut cockpit-strut--right"></span>
+      <span class="cockpit-header-beam"></span>
+    </div>
+    <div class="cockpit-hud">
+      <div class="cockpit-hud-block cockpit-hud-block--left">
+        <b>RANGER 07</b>
+        <span>FORWARD OBSERVATION</span>
+        <i>NAV / LOCKED</i>
+      </div>
+      <div class="cockpit-hud-block cockpit-hud-block--right">
+        <b>PROXIMITY</b>
+        <span>3.70 R<sub>S</sub></span>
+        <i>HULL / NOMINAL</i>
+      </div>
+      <div class="cockpit-reticle">
+        <i></i><span></span><b>VECTOR HOLD</b>
+      </div>
+    </div>
+    <div class="cockpit-console">
+      <div class="cockpit-panel cockpit-panel--left"><span></span><span></span><span></span></div>
+      <div class="cockpit-panel cockpit-panel--center"><i></i><b>MANUAL VECTOR</b><i></i></div>
+      <div class="cockpit-panel cockpit-panel--right"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
   <div class="interface-layer">
     <div class="cinematic-frame" aria-hidden="true">
       <span class="frame-corner frame-corner--tl"></span>
@@ -87,6 +122,7 @@ const deckMarkup = `
             <button type="button" data-camera-preset="edge" aria-pressed="false"><b>02</b><span>Edge of light</span></button>
             <button type="button" data-camera-preset="polar" aria-pressed="false"><b>03</b><span>Polar crown</span></button>
             <button type="button" data-camera-preset="wide" aria-pressed="false"><b>04</b><span>Wide orbit</span></button>
+            <button type="button" data-camera-preset="cockpit" aria-pressed="false"><b>05</b><span>Flight deck</span></button>
           </div>
         </section>
 
@@ -164,7 +200,7 @@ export class ScienceDeck {
       this.root.removeEventListener('input', this.handleInput);
       this.root.removeEventListener('click', this.handleClick);
       this.root.replaceChildren();
-      this.root.classList.remove('ui-hidden');
+      this.root.classList.remove('ui-hidden', 'is-cockpit');
     }
     this.root = null;
     this.collapsed = false;
@@ -193,6 +229,7 @@ export class ScienceDeck {
     for (const button of this.root.querySelectorAll<HTMLElement>('[data-camera-preset]')) {
       button.setAttribute('aria-pressed', String(button.dataset.cameraPreset === snapshot.cameraPreset));
     }
+    this.root.classList.toggle('is-cockpit', snapshot.cameraPreset === 'cockpit');
     this.root.classList.toggle('ui-hidden', !snapshot.uiVisible);
   };
 
