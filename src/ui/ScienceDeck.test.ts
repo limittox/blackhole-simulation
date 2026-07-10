@@ -121,6 +121,25 @@ describe('ScienceDeck', () => {
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
+  it('shows live ship telemetry and pilot controls in flight deck mode', () => {
+    const { deck, root } = mountDeck();
+
+    deck.updateFlightTelemetry({
+      active: true,
+      distance: 4.26,
+      speed: 0.42,
+      thrust: 1,
+      strafe: -1,
+      lift: 0,
+    });
+
+    expect(root.querySelector('[data-flight-distance]')?.textContent).toBe('4.26');
+    expect(root.querySelector('[data-flight-speed]')?.textContent).toBe('0.42');
+    expect(root.querySelector('.flight-guide')?.textContent).toContain('THRUST');
+    expect(root.classList.contains('is-thrusting')).toBe(true);
+    expect(root.style.getPropertyValue('--cockpit-bank')).toBe('0.8deg');
+  });
+
   it('updates the quality preset from the native selector', () => {
     const { root, store } = mountDeck();
     const quality = root.querySelector<HTMLSelectElement>('#quality-control')!;

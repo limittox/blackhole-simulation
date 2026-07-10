@@ -125,14 +125,14 @@ input:focus-visible {
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: scale(1.018);
+  transform: scale(1.018) rotate(0deg);
   transform-origin: 50% 62%;
-  transition: opacity 650ms ease, transform 900ms cubic-bezier(.2,.8,.2,1);
+  transition: opacity 650ms ease, transform 180ms ease-out;
 }
 
 #interface-root.is-cockpit .cockpit-shell {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) rotate(var(--cockpit-bank, 0deg));
 }
 
 .cockpit-glass {
@@ -227,6 +227,11 @@ input:focus-visible {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(233,184,107,.5), transparent);
   box-shadow: 0 0 11px rgba(233,184,107,.3);
+}
+
+#interface-root.is-thrusting .cockpit-console::before {
+  background: linear-gradient(90deg, transparent, rgba(255,215,155,.88), transparent);
+  box-shadow: 0 0 18px rgba(233,184,107,.68);
 }
 
 .cockpit-panel {
@@ -547,6 +552,9 @@ kbd { padding: 2px 4px; color: var(--dim); border: 1px solid rgba(255,255,255,.1
 }
 .interaction-guide span { display: inline-flex; align-items: center; gap: 7px; }
 .interaction-guide b { color: var(--muted); font-weight: 500; }
+.interaction-guide .flight-guide { display: none; }
+#interface-root.is-cockpit .interaction-guide .orbit-guide { display: none; }
+#interface-root.is-cockpit .interaction-guide .flight-guide { display: inline-flex; }
 .mouse-icon { width: 8px; height: 12px; border: 1px solid var(--dim); border-radius: 6px; }
 .scroll-icon { width: 1px; height: 12px; background: var(--dim); box-shadow: -3px 3px 0 -1px var(--dim), 3px -3px 0 -1px var(--dim); }
 .coordinate-readout { margin-left: auto; }

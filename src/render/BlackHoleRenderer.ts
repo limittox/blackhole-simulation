@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import type { CameraPose } from '../camera/CameraController';
+import { DEFAULT_CAMERA_POSE, type CameraPose } from '../camera/CameraController';
 import type { QualitySettings } from '../performance/AdaptiveQuality';
 import type { SimulationSnapshot } from '../state/SimulationStore';
 import { toShaderParameters } from '../math/physics';
@@ -63,7 +63,8 @@ interface ShaderUniforms {
   uSpin: { value: number };
   uDiskHeat: { value: number };
   uLensing: { value: number };
-  uCamera: { value: THREE.Vector3 };
+  uCameraPosition: { value: THREE.Vector3 };
+  uCameraForward: { value: THREE.Vector3 };
   uDiskSteps: { value: number };
   uDiskOuterRadius: { value: number };
   uHorizonRadius: { value: number };
@@ -120,7 +121,8 @@ class ThreeRendererBackend implements RendererBackend {
       uSpin: { value: 0.72 },
       uDiskHeat: { value: 0.58 },
       uLensing: { value: 1 },
-      uCamera: { value: new THREE.Vector3(-0.28, 0.2, 4.6) },
+      uCameraPosition: { value: new THREE.Vector3(...DEFAULT_CAMERA_POSE.position) },
+      uCameraForward: { value: new THREE.Vector3(...DEFAULT_CAMERA_POSE.forward) },
       uDiskSteps: { value: 56 },
       uDiskOuterRadius: { value: DISK_MODEL.outerRadius },
       uHorizonRadius: { value: DISK_MODEL.horizonRadius },
@@ -177,7 +179,8 @@ class ThreeRendererBackend implements RendererBackend {
     this.uniforms.uSpin.value = frame.spin;
     this.uniforms.uDiskHeat.value = frame.diskHeat;
     this.uniforms.uLensing.value = frame.lensing;
-    this.uniforms.uCamera.value.set(frame.camera.yaw, frame.camera.pitch, frame.camera.distance);
+    this.uniforms.uCameraPosition.value.set(...frame.camera.position);
+    this.uniforms.uCameraForward.value.set(...frame.camera.forward);
     this.uniforms.uDiskSteps.value = frame.diskSteps;
     this.bloomPass.enabled = frame.bloom;
     this.bloomPass.strength =

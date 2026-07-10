@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CAMERA_DISTANCE_LIMITS,
   CAMERA_PRESETS,
   CameraController,
   DEFAULT_CAMERA_POSE,
@@ -53,6 +54,48 @@ describe('CameraController', () => {
 
     expect(camera.getPose().yaw).not.toBe(DEFAULT_CAMERA_POSE.yaw);
     expect(camera.getPose().pitch).not.toBe(DEFAULT_CAMERA_POSE.pitch);
+  });
+
+  it('flies the ship through world space with continuous thrust', () => {
+    const camera = new CameraController(true);
+    camera.selectPreset('cockpit');
+    const before = camera.getPose();
+
+    camera.setFlightInput({ thrust: 1, strafe: 0, lift: 0 });
+    camera.update(0.5, 0);
+
+    const after = camera.getPose();
+    expect(after.position).not.toEqual(before.position);
+    expect(after.distance).toBeLessThan(before.distance);
+    expect(after.forward).toEqual(before.forward);
+    expect(camera.getFlightTelemetry()).toMatchObject({ active: true, thrust: 1 });
+    expect(camera.getFlightTelemetry().speed).toBeGreaterThan(0);
+  });
+
+  it('steers the ship view without dragging its world position', () => {
+    const camera = new CameraController(true);
+    camera.selectPreset('cockpit');
+    const before = camera.getPose();
+
+    camera.beginOrbit(100, 100);
+    camera.moveOrbit(180, 140);
+    camera.endOrbit();
+
+    const after = camera.getPose();
+    expect(after.position).toEqual(before.position);
+    expect(after.forward).not.toEqual(before.forward);
+  });
+
+  it('keeps the ship outside the emitting disk during sustained thrust', () => {
+    const camera = new CameraController(true);
+    camera.selectPreset('cockpit');
+    camera.setFlightInput({ thrust: 1, strafe: 0, lift: 0 });
+
+    for (let frame = 0; frame < 240; frame += 1) camera.update(1 / 60, 0);
+
+    expect(camera.getPose().distance).toBeGreaterThanOrEqual(
+      CAMERA_DISTANCE_LIMITS.minimum,
+    );
   });
 
   it('does not idle-drift when reduced motion is enabled', () => {

@@ -98,6 +98,13 @@ describe('BlackHoleRenderer', () => {
     expect(fragmentShader).toContain('integrationStep / (radius * radius)');
   });
 
+  it('separates ship position and heading so pilot steering moves the observer', () => {
+    expect(fragmentShader).toContain('uniform vec3 uCameraPosition;');
+    expect(fragmentShader).toContain('uniform vec3 uCameraForward;');
+    expect(fragmentShader).toContain('cameraRay(vUv, uCameraForward)');
+    expect(fragmentShader).not.toContain('cameraRay(vUv, origin, vec3(0.0))');
+  });
+
   it('keeps the observatory outside the emitting disk with restrained bloom', () => {
     for (const preset of Object.values(CAMERA_PRESETS)) {
       expect(preset.distance).toBeGreaterThan(DISK_MODEL.outerRadius + 0.25);

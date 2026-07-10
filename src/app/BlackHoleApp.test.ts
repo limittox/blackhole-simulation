@@ -72,6 +72,25 @@ describe('BlackHoleApp', () => {
     expect(harness.store.getSnapshot().cameraPreset).toBe('cockpit');
   });
 
+  it('applies held pilot controls only in flight deck mode', () => {
+    const harness = createAppHarness();
+    harness.app.start();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+    harness.runFrame(1_000);
+    expect(harness.camera.getFlightTelemetry().active).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }));
+    harness.store.patch({ cameraPreset: 'cockpit' });
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+    harness.runFrame(1_100);
+
+    expect(harness.camera.getFlightTelemetry().active).toBe(true);
+    expect(harness.camera.getFlightTelemetry().speed).toBeGreaterThan(0);
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }));
+  });
+
   it('ignores shortcuts originating from form controls', () => {
     const harness = createAppHarness();
     harness.app.start();

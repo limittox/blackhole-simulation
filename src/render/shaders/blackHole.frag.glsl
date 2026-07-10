@@ -10,7 +10,8 @@ uniform float uMassScale;
 uniform float uSpin;
 uniform float uDiskHeat;
 uniform float uLensing;
-uniform vec3 uCamera;
+uniform vec3 uCameraPosition;
+uniform vec3 uCameraForward;
 uniform int uDiskSteps;
 uniform float uDiskOuterRadius;
 uniform float uHorizonRadius;
@@ -44,18 +45,13 @@ float valueNoisePeriodicX(vec2 p, float period) {
 }
 
 vec3 cameraPosition() {
-  float cosPitch = cos(uCamera.y);
-  return vec3(
-    cosPitch * sin(uCamera.x),
-    sin(uCamera.y),
-    cosPitch * cos(uCamera.x)
-  ) * uCamera.z;
+  return uCameraPosition;
 }
 
-vec3 cameraRay(vec2 uv, vec3 origin, vec3 target) {
+vec3 cameraRay(vec2 uv, vec3 forwardDirection) {
   vec2 screen = uv * 2.0 - 1.0;
   screen.x *= uResolution.x / max(uResolution.y, 1.0);
-  vec3 forward = normalize(target - origin);
+  vec3 forward = normalize(forwardDirection);
   vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
   vec3 up = normalize(cross(right, forward));
   return normalize(forward + screen.x * right * 0.5 + screen.y * up * 0.5);
@@ -158,7 +154,7 @@ vec4 sampleAccretionDisk(
 
 void main() {
   vec3 origin = cameraPosition();
-  vec3 direction = cameraRay(vUv, origin, vec3(0.0));
+  vec3 direction = cameraRay(vUv, uCameraForward);
   vec3 position = origin;
   vec3 diskLight = vec3(0.0);
   float transmittance = 1.0;

@@ -1,4 +1,4 @@
-import { CameraController } from '../camera/CameraController';
+import { CameraController, type FlightInput } from '../camera/CameraController';
 import { AdaptiveQuality } from '../performance/AdaptiveQuality';
 import { BlackHoleRenderer } from '../render/BlackHoleRenderer';
 import {
@@ -39,6 +39,8 @@ const keyboardPresets: Readonly<Record<string, CameraPreset>> = {
   '5': 'cockpit',
 };
 
+const flightControlCodes = new Set(['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyQ', 'KeyE']);
+
 const isFormTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   return target.matches('input, select, button, textarea') || target.isContentEditable;
@@ -67,6 +69,7 @@ export class BlackHoleApp {
   private disposed = false;
   private lastCameraPreset: CameraPreset;
   private lastQualityPreset: QualityPreset;
+  private readonly pressedFlightControls = new Set<string>();
 
   constructor(options: BlackHoleAppOptions) {
     this.canvas = options.canvas;
@@ -153,6 +156,7 @@ export class BlackHoleApp {
     this.quality.sample(frameMilliseconds);
     const idleSeconds = Math.max(0, (timestamp - this.lastInteractionTime) / 1_000);
     const pose = this.camera.update(deltaSeconds, idleSeconds);
+    this.scienceDeck.updateFlightTelemetry(this.camera.getFlightTelemetry());
     this.renderer.renderFrame(snapshot, pose, this.simulationTime, this.quality.settings);
     this.scheduleFrame();
   };
@@ -160,6 +164,7 @@ export class BlackHoleApp {
   private readonly handleStateChange = (snapshot: SimulationSnapshot): void => {
     if (snapshot.cameraPreset !== this.lastCameraPreset) {
       this.lastCameraPreset = snapshot.cameraPreset;
+      this.clearFlightControls();
       this.camera.selectPreset(snapshot.cameraPreset);
     }
     if (snapshot.quality !== this.lastQualityPreset) {
@@ -174,6 +179,16 @@ export class BlackHoleApp {
     const preset = keyboardPresets[event.key];
     this.noteInteraction();
 
+    if (
+      flightControlCodes.has(event.code) &&
+      this.store.getSnapshot().cameraPreset === 'cockpit'
+    ) {
+      event.preventDefault();
+      this.pressedFlightControls.add(event.code);
+      this.syncFlightControls();
+      return;
+    }
+
     if (event.code === 'Space') {
       event.preventDefault();
       this.store.patch({ paused: !this.store.getSnapshot().paused });
@@ -185,6 +200,18 @@ export class BlackHoleApp {
     } else if (preset) {
       this.store.patch({ cameraPreset: preset });
     }
+  };
+
+  private readonly handleKeyUp = (event: KeyboardEvent): void => {
+    if (!flightControlCodes.has(event.code)) return;
+    if (!this.pressedFlightControls.delete(event.code)) return;
+    event.preventDefault();
+    this.syncFlightControls();
+    this.noteInteraction();
+  };
+
+  private readonly handleWindowBlur = (): void => {
+    this.clearFlightControls();
   };
 
   private readonly handlePointerDown = (event: PointerEvent): void => {
@@ -215,6 +242,7 @@ export class BlackHoleApp {
 
   private readonly handleVisibilityChange = (): void => {
     if (document.hidden) {
+      this.clearFlightControls();
       this.stop();
       return;
     }
@@ -229,8 +257,30 @@ export class BlackHoleApp {
     this.intro.skip();
   }
 
+  private syncFlightControls(): void {
+    const input: FlightInput = {
+      thrust:
+        Number(this.pressedFlightControls.has('KeyW')) -
+        Number(this.pressedFlightControls.has('KeyS')),
+      strafe:
+        Number(this.pressedFlightControls.has('KeyD')) -
+        Number(this.pressedFlightControls.has('KeyA')),
+      lift:
+        Number(this.pressedFlightControls.has('KeyE')) -
+        Number(this.pressedFlightControls.has('KeyQ')),
+    };
+    this.camera.setFlightInput(input);
+  }
+
+  private clearFlightControls(): void {
+    this.pressedFlightControls.clear();
+    this.camera.setFlightInput({ thrust: 0, strafe: 0, lift: 0 });
+  }
+
   private addInteractionListeners(): void {
     window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('keyup', this.handleKeyUp);
+    window.addEventListener('blur', this.handleWindowBlur);
     this.canvas.addEventListener('pointerdown', this.handlePointerDown);
     this.canvas.addEventListener('pointermove', this.handlePointerMove);
     this.canvas.addEventListener('pointerup', this.handlePointerUp);
@@ -241,6 +291,8 @@ export class BlackHoleApp {
 
   private removeInteractionListeners(): void {
     window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keyup', this.handleKeyUp);
+    window.removeEventListener('blur', this.handleWindowBlur);
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
     this.canvas.removeEventListener('pointermove', this.handlePointerMove);
     this.canvas.removeEventListener('pointerup', this.handlePointerUp);

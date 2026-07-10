@@ -1,4 +1,5 @@
 import { derivePhysics } from '../math/physics';
+import type { FlightTelemetry } from '../camera/CameraController';
 import type {
   CameraPreset,
   QualityPreset,
@@ -31,16 +32,16 @@ const deckMarkup = `
     <div class="cockpit-hud">
       <div class="cockpit-hud-block cockpit-hud-block--left">
         <b>RANGER 07</b>
-        <span>FORWARD OBSERVATION</span>
-        <i>NAV / LOCKED</i>
+        <span>FORWARD FLIGHT CONTROL</span>
+        <i data-flight-mode>PILOT / MANUAL</i>
       </div>
       <div class="cockpit-hud-block cockpit-hud-block--right">
         <b>PROXIMITY</b>
-        <span>3.70 R<sub>S</sub></span>
-        <i>HULL / NOMINAL</i>
+        <span><span data-flight-distance>3.70</span> R<sub>S</sub></span>
+        <i><span data-flight-speed>0.00</span> R<sub>S</sub>/S</i>
       </div>
       <div class="cockpit-reticle">
-        <i></i><span></span><b>VECTOR HOLD</b>
+        <i></i><span></span><b data-flight-status>VECTOR HOLD</b>
       </div>
     </div>
     <div class="cockpit-console">
@@ -148,8 +149,12 @@ const deckMarkup = `
     </aside>
 
     <footer class="interaction-guide" aria-label="Interaction guide">
-      <span><i class="mouse-icon"></i> DRAG <b>ORBIT</b></span>
-      <span><i class="scroll-icon"></i> SCROLL <b>RANGE</b></span>
+      <span class="orbit-guide"><i class="mouse-icon"></i> DRAG <b>ORBIT</b></span>
+      <span class="orbit-guide"><i class="scroll-icon"></i> SCROLL <b>RANGE</b></span>
+      <span class="flight-guide"><kbd>W/S</kbd> <b>THRUST</b></span>
+      <span class="flight-guide"><kbd>A/D</kbd> <b>STRAFE</b></span>
+      <span class="flight-guide"><kbd>Q/E</kbd> <b>LIFT</b></span>
+      <span class="flight-guide"><i class="mouse-icon"></i> DRAG <b>STEER</b></span>
       <span class="coordinate-readout">RA 17H 45M 40S <em>/</em> DEC −29° 00′ 28″</span>
     </footer>
   </div>
@@ -193,6 +198,25 @@ export class ScienceDeck {
       </div>`;
   }
 
+  updateFlightTelemetry(telemetry: Readonly<FlightTelemetry>): void {
+    if (!this.root) return;
+    this.setText('[data-flight-distance]', telemetry.distance.toFixed(2));
+    this.setText('[data-flight-speed]', telemetry.speed.toFixed(2));
+    this.setText('[data-flight-mode]', telemetry.active ? 'PILOT / MANUAL' : 'NAV / LOCKED');
+    this.setText(
+      '[data-flight-status]',
+      telemetry.active && telemetry.speed > 0.03 ? 'VECTOR ACTIVE' : 'VECTOR HOLD',
+    );
+    this.root.style.setProperty(
+      '--cockpit-bank',
+      `${(-telemetry.strafe * 0.8).toFixed(1)}deg`,
+    );
+    this.root.classList.toggle(
+      'is-thrusting',
+      telemetry.active && Math.abs(telemetry.thrust) > 0.01,
+    );
+  }
+
   dispose(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
@@ -200,7 +224,8 @@ export class ScienceDeck {
       this.root.removeEventListener('input', this.handleInput);
       this.root.removeEventListener('click', this.handleClick);
       this.root.replaceChildren();
-      this.root.classList.remove('ui-hidden', 'is-cockpit');
+      this.root.classList.remove('ui-hidden', 'is-cockpit', 'is-thrusting');
+      this.root.style.removeProperty('--cockpit-bank');
     }
     this.root = null;
     this.collapsed = false;
