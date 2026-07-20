@@ -2,6 +2,8 @@
 
 A desktop-first, real-time black-hole visualization built with Three.js and a custom GLSL lensing shader. The simulation combines physically recognizable phenomena—light bending, a captured-light shadow, photon ring, accretion flow, gravitational redshift, and relativistic Doppler beaming—with controlled cinematic exaggeration.
 
+**Live simulation:** https://limittox.github.io/blackhole-simulation/
+
 All visual assets are generated procedurally. The project does not use imagery, footage, or other assets from *Interstellar*.
 
 ## Run locally
